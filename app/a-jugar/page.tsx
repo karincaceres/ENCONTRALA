@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { CartSidebar } from '@/components/cart-sidebar'
+import { EncontralaLogo } from '@/components/encontrala-logo'
 import { prizes, useGame } from '@/components/game-provider'
 import { PrizeCard } from '@/components/prize-card'
-import { CartSidebar } from '@/components/cart-sidebar'
-import { ShoppingCart, Home } from 'lucide-react'
-import { EncontralaLogo } from '@/components/encontrala-logo'
+import { Home, ShoppingCart } from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
 
 // Prize images based on the contact sheet
 const prizeImages = [
@@ -37,7 +37,7 @@ export default function AJugarPage() {
             <Home className="w-5 h-5 text-white" />
             <EncontralaLogo className="w-24 md:w-32" />
           </Link>
-          
+
           {/* Cart Button */}
           <button
             onClick={() => setIsCartOpen(true)}
@@ -53,9 +53,9 @@ export default function AJugarPage() {
           </button>
         </div>
       </header>
-      
+
       {/* Page Title */}
-      <div className="bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] py-6 md:py-8">
+      <div className="bg-linear-to-b from-[#1a1a1a] to-[#0a0a0a] py-6 md:py-8">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-4">
             <div className="w-1 h-12 bg-[#E53935] rounded-full" />
@@ -70,23 +70,23 @@ export default function AJugarPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Prizes Grid */}
       <section className="container mx-auto px-4 py-6 md:py-8">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
           {prizes.map((prize) => (
-            <PrizeCard 
-              key={prize.id} 
+            <PrizeCard
+              key={prize.id}
               prize={prize}
               imageUrl={prizeImageMap[prize.id] || prizeImages[0]}
             />
           ))}
         </div>
       </section>
-      
+
       {/* Floating Cart Summary - Mobile */}
       {getTotalItems() > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a] to-transparent md:hidden z-20">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-linear-to-t from-[#0a0a0a] via-[#0a0a0a] to-transparent md:hidden z-20">
           <button
             onClick={() => setIsCartOpen(true)}
             className="w-full py-4 bg-[#E53935] hover:bg-[#C62828] rounded-lg flex items-center justify-center gap-3 transition-colors shadow-lg"
@@ -98,7 +98,7 @@ export default function AJugarPage() {
           </button>
         </div>
       )}
-      
+
       {/* Cart Sidebar */}
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </main>

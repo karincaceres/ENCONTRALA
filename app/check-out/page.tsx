@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useGame } from '@/components/game-provider'
 import { EncontralaLogo } from '@/components/encontrala-logo'
-import { Home, ArrowLeft, Trash2, User, CheckCircle2, Gift } from 'lucide-react'
+import { useGame } from '@/components/game-provider'
+import { ArrowLeft, CheckCircle2, Gift, Home, Trash2, User } from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
 
 export default function CheckOutPage() {
   const { cart, removeFromCart, getTotalItems, clearCart } = useGame()
@@ -141,7 +141,7 @@ export default function CheckOutPage() {
       </header>
 
       {/* Page Title */}
-      <div className="bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] py-6 md:py-8">
+      <div className="bg-linear-to-b from-[#1a1a1a] to-[#0a0a0a] py-6 md:py-8">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-4">
             <div className="w-1 h-12 bg-[#E53935] rounded-full" />
