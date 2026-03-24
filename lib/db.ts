@@ -1,0 +1,249 @@
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  GetCommand,
+  QueryCommand,
+  ScanCommand,
+  UpdateCommand,
+  DeleteCommand,
+} from '@aws-sdk/lib-dynamodb'
+import { awsCredentialsProvider } from '@vercel/functions/oidc'
+import { Participant, Jugada, WinningPosition } from './types'
+
+export const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME
+const PK = process.env.DYNAMODB_TABLE_PARTITION_KEY || 'pk'
+
+const client = new DynamoDBClient({
+  region: process.env.AWS_REGION,
+  credentials: awsCredentialsProvider({
+    roleArn: process.env.AWS_ROLE_ARN!,
+    clientConfig: { region: process.env.AWS_REGION },
+  }),
+})
+
+const docClient = DynamoDBDocumentClient.from(client, {
+  marshallOptions: {
+    removeUndefinedValues: true,
+  },
+})
+
+// ==================== PARTICIPANTS ====================
+
+export async function createParticipant(participant: Participant): Promise<Participant> {
+  await docClient.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        [PK]: `PARTICIPANT#${participant.id}`,
+        sk: `PARTICIPANT#${participant.id}`,
+        type: 'PARTICIPANT',
+        ...participant,
+      },
+    }),
+  )
+  return participant
+}
+
+export async function getParticipantById(id: string): Promise<Participant | null> {
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        [PK]: `PARTICIPANT#${id}`,
+        sk: `PARTICIPANT#${id}`,
+      },
+    }),
+  )
+  return (result.Item as Participant) || null
+}
+
+export async function getParticipantByEmail(email: string): Promise<Participant | null> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: '#type = :type AND email = :email',
+      ExpressionAttributeNames: {
+        '#type': 'type',
+      },
+      ExpressionAttributeValues: {
+        ':type': 'PARTICIPANT',
+        ':email': email,
+      },
+    }),
+  )
+  return (result.Items?.[0] as Participant) || null
+}
+
+// ==================== JUGADAS ====================
+
+export async function createJugada(jugada: Jugada): Promise<Jugada> {
+  await docClient.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        [PK]: `PARTICIPANT#${jugada.participantId}`,
+        sk: `JUGADA#${jugada.id}`,
+        type: 'JUGADA',
+        gsi1pk: `PRIZE#${jugada.prizeId}`,
+        gsi1sk: `JUGADA#${jugada.id}`,
+        ...jugada,
+      },
+    }),
+  )
+  return jugada
+}
+
+export async function getJugadasByParticipant(participantId: string): Promise<Jugada[]> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: `${PK} = :pk AND begins_with(sk, :sk)`,
+      ExpressionAttributeValues: {
+        ':pk': `PARTICIPANT#${participantId}`,
+        ':sk': 'JUGADA#',
+      },
+    }),
+  )
+  return (result.Items || []) as Jugada[]
+}
+
+export async function getJugadasByPrize(prizeId: string): Promise<Jugada[]> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: 'gsi1',
+      KeyConditionExpression: 'gsi1pk = :pk',
+      ExpressionAttributeValues: {
+        ':pk': `PRIZE#${prizeId}`,
+      },
+    }),
+  )
+  return (result.Items || []) as Jugada[]
+}
+
+export async function getAllJugadas(): Promise<Jugada[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: '#type = :type',
+      ExpressionAttributeNames: {
+        '#type': 'type',
+      },
+      ExpressionAttributeValues: {
+        ':type': 'JUGADA',
+      },
+    }),
+  )
+  return (result.Items || []) as Jugada[]
+}
+
+export async function updateJugadaWinner(
+  participantId: string,
+  jugadaId: string,
+  isWinner: boolean,
+  notifiedAt?: number
+): Promise<void> {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        [PK]: `PARTICIPANT#${participantId}`,
+        sk: `JUGADA#${jugadaId}`,
+      },
+      UpdateExpression: 'SET isWinner = :winner, notifiedAt = :notified',
+      ExpressionAttributeValues: {
+        ':winner': isWinner,
+        ':notified': notifiedAt || Date.now(),
+      },
+    }),
+  )
+}
+
+// ==================== WINNING POSITIONS ====================
+
+export async function createWinningPosition(position: WinningPosition): Promise<WinningPosition> {
+  await docClient.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        [PK]: `WINNING#${position.prizeId}`,
+        sk: `POSITION#${position.id}`,
+        type: 'WINNING_POSITION',
+        ...position,
+      },
+    }),
+  )
+  return position
+}
+
+export async function getWinningPositionByPrize(prizeId: string): Promise<WinningPosition | null> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: `${PK} = :pk AND begins_with(sk, :sk)`,
+      ExpressionAttributeValues: {
+        ':pk': `WINNING#${prizeId}`,
+        ':sk': 'POSITION#',
+      },
+      Limit: 1,
+    }),
+  )
+  return (result.Items?.[0] as WinningPosition) || null
+}
+
+export async function getAllWinningPositions(): Promise<WinningPosition[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: '#type = :type',
+      ExpressionAttributeNames: {
+        '#type': 'type',
+      },
+      ExpressionAttributeValues: {
+        ':type': 'WINNING_POSITION',
+      },
+    }),
+  )
+  return (result.Items || []) as WinningPosition[]
+}
+
+export async function updateWinningPositionProcessed(
+  prizeId: string,
+  positionId: string,
+  winnersCount: number
+): Promise<void> {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        [PK]: `WINNING#${prizeId}`,
+        sk: `POSITION#${positionId}`,
+      },
+      UpdateExpression: 'SET processedAt = :processed, winnersCount = :count',
+      ExpressionAttributeValues: {
+        ':processed': Date.now(),
+        ':count': winnersCount,
+      },
+    }),
+  )
+}
+
+// ==================== UTILITY ====================
+
+export function calculateDistance(
+  pos1: { x: number; y: number },
+  pos2: { x: number; y: number }
+): number {
+  const dx = pos1.x - pos2.x
+  const dy = pos1.y - pos2.y
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+export function isWithinTolerance(
+  jugadaPos: { x: number; y: number },
+  winningPos: { x: number; y: number },
+  tolerance: number
+): boolean {
+  return calculateDistance(jugadaPos, winningPos) <= tolerance
+}
