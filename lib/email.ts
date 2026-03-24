@@ -1,17 +1,29 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { Jugada, WinningPosition } from './types'
 
-function getResend() {
-  const apiKey = process.env.RESEND_API_KEY
+function getTransporter() {
+  const user = process.env.GMAIL_USER
+  const pass = process.env.GMAIL_APP_PASSWORD
 
-  if (!apiKey) {
-    throw new Error('RESEND_API_KEY no está configurada')
+  if (!user) {
+    throw new Error('GMAIL_USER no está configurado')
   }
 
-  return new Resend(apiKey)
+  if (!pass) {
+    throw new Error('GMAIL_APP_PASSWORD no está configurado')
+  }
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user,
+      pass,
+    },
+  })
 }
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'ENCONTRALA <noreply@encontrala.com>'
+const FROM_EMAIL =
+  process.env.FROM_EMAIL || process.env.GMAIL_USER || 'tuemail@gmail.com'
 
 interface SendJugadaConfirmationParams {
   to: string
@@ -22,9 +34,9 @@ export async function sendJugadaConfirmationEmail({
   to,
   jugada,
 }: SendJugadaConfirmationParams) {
-  const resend = getResend()
+  const transporter = getTransporter()
 
-  const { data, error } = await resend.emails.send({
+  const info = await transporter.sendMail({
     from: FROM_EMAIL,
     to,
     subject: `Tu jugada fue registrada - ${jugada.prizeName}`,
@@ -106,11 +118,7 @@ export async function sendJugadaConfirmationEmail({
     `,
   })
 
-  if (error) {
-    throw new Error(`Failed to send email: ${error.message}`)
-  }
-
-  return data
+  return info
 }
 
 interface SendWinnerNotificationParams {
@@ -124,14 +132,14 @@ export async function sendWinnerNotificationEmail({
   jugada,
   winningPosition,
 }: SendWinnerNotificationParams) {
-  const resend = getResend()
+  const transporter = getTransporter()
 
   const distance = Math.sqrt(
     Math.pow(jugada.positionX - winningPosition.positionX, 2) +
       Math.pow(jugada.positionY - winningPosition.positionY, 2)
   )
 
-  const { data, error } = await resend.emails.send({
+  const info = await transporter.sendMail({
     from: FROM_EMAIL,
     to,
     subject: `FELICITACIONES! Ganaste - ${jugada.prizeName}`,
@@ -226,9 +234,5 @@ export async function sendWinnerNotificationEmail({
     `,
   })
 
-  if (error) {
-    throw new Error(`Failed to send winner email: ${error.message}`)
-  }
-
-  return data
+  return info
 }
