@@ -1,7 +1,15 @@
 import { Resend } from 'resend'
 import { Jugada, WinningPosition } from './types'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY
+
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY no está configurada')
+  }
+
+  return new Resend(apiKey)
+}
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'ENCONTRALA <noreply@encontrala.com>'
 
@@ -10,7 +18,12 @@ interface SendJugadaConfirmationParams {
   jugada: Jugada
 }
 
-export async function sendJugadaConfirmationEmail({ to, jugada }: SendJugadaConfirmationParams) {
+export async function sendJugadaConfirmationEmail({
+  to,
+  jugada,
+}: SendJugadaConfirmationParams) {
+  const resend = getResend()
+
   const { data, error } = await resend.emails.send({
     from: FROM_EMAIL,
     to,
@@ -27,7 +40,6 @@ export async function sendJugadaConfirmationEmail({ to, jugada }: SendJugadaConf
           <tr>
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a; border-radius: 12px; overflow: hidden;">
-                <!-- Header -->
                 <tr>
                   <td style="background-color: #E53935; padding: 30px; text-align: center;">
                     <h1 style="margin: 0; color: white; font-size: 32px; font-weight: bold; letter-spacing: 2px;">
@@ -38,19 +50,17 @@ export async function sendJugadaConfirmationEmail({ to, jugada }: SendJugadaConf
                     </p>
                   </td>
                 </tr>
-                
-                <!-- Content -->
+
                 <tr>
                   <td style="padding: 40px 30px;">
                     <h2 style="margin: 0 0 20px; color: #8BC34A; font-size: 24px; text-align: center;">
                       TU JUGADA FUE REGISTRADA
                     </h2>
-                    
+
                     <p style="margin: 0 0 30px; color: #cccccc; font-size: 16px; line-height: 1.6; text-align: center;">
                       Tu jugada para el premio <strong style="color: white;">${jugada.prizeName}</strong> fue guardada exitosamente.
                     </p>
-                    
-                    <!-- Position Box -->
+
                     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #222; border-radius: 8px; margin-bottom: 30px;">
                       <tr>
                         <td style="padding: 20px; text-align: center;">
@@ -63,9 +73,8 @@ export async function sendJugadaConfirmationEmail({ to, jugada }: SendJugadaConf
                         </td>
                       </tr>
                     </table>
-                    
+
                     ${jugada.imageUrl ? `
-                    <!-- Play Image -->
                     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                       <tr>
                         <td style="text-align: center;">
@@ -74,14 +83,13 @@ export async function sendJugadaConfirmationEmail({ to, jugada }: SendJugadaConf
                       </tr>
                     </table>
                     ` : ''}
-                    
+
                     <p style="margin: 0; color: #888; font-size: 14px; text-align: center; line-height: 1.6;">
                       Te notificaremos cuando se defina la posición ganadora del video/replay oficial.
                     </p>
                   </td>
                 </tr>
-                
-                <!-- Footer -->
+
                 <tr>
                   <td style="background-color: #111; padding: 20px 30px; text-align: center;">
                     <p style="margin: 0; color: #666; font-size: 12px;">
@@ -111,10 +119,16 @@ interface SendWinnerNotificationParams {
   winningPosition: WinningPosition
 }
 
-export async function sendWinnerNotificationEmail({ to, jugada, winningPosition }: SendWinnerNotificationParams) {
+export async function sendWinnerNotificationEmail({
+  to,
+  jugada,
+  winningPosition,
+}: SendWinnerNotificationParams) {
+  const resend = getResend()
+
   const distance = Math.sqrt(
     Math.pow(jugada.positionX - winningPosition.positionX, 2) +
-    Math.pow(jugada.positionY - winningPosition.positionY, 2)
+      Math.pow(jugada.positionY - winningPosition.positionY, 2)
   )
 
   const { data, error } = await resend.emails.send({
@@ -133,7 +147,6 @@ export async function sendWinnerNotificationEmail({ to, jugada, winningPosition 
           <tr>
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a; border-radius: 12px; overflow: hidden;">
-                <!-- Header -->
                 <tr>
                   <td style="background-color: #8BC34A; padding: 30px; text-align: center;">
                     <h1 style="margin: 0; color: #0a0a0a; font-size: 36px; font-weight: bold; letter-spacing: 2px;">
@@ -141,19 +154,17 @@ export async function sendWinnerNotificationEmail({ to, jugada, winningPosition 
                     </h1>
                   </td>
                 </tr>
-                
-                <!-- Content -->
+
                 <tr>
                   <td style="padding: 40px 30px;">
                     <h2 style="margin: 0 0 20px; color: white; font-size: 24px; text-align: center;">
                       ${jugada.prizeName}
                     </h2>
-                    
+
                     <p style="margin: 0 0 30px; color: #cccccc; font-size: 16px; line-height: 1.6; text-align: center;">
                       Tu jugada coincidió con la posición del video/replay oficial. FELICITACIONES!
                     </p>
-                    
-                    <!-- Comparison Box -->
+
                     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #222; border-radius: 8px; margin-bottom: 20px;">
                       <tr>
                         <td style="padding: 20px; text-align: center; border-bottom: 1px solid #333;">
@@ -176,11 +187,11 @@ export async function sendWinnerNotificationEmail({ to, jugada, winningPosition 
                         </td>
                       </tr>
                     </table>
-                    
+
                     <p style="margin: 0 0 30px; color: #8BC34A; font-size: 14px; text-align: center;">
                       Distancia: ${distance.toFixed(2)}% (tolerancia: ${winningPosition.tolerance}%)
                     </p>
-                    
+
                     ${winningPosition.videoUrl ? `
                     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                       <tr>
@@ -192,14 +203,13 @@ export async function sendWinnerNotificationEmail({ to, jugada, winningPosition 
                       </tr>
                     </table>
                     ` : ''}
-                    
+
                     <p style="margin: 0; color: #888; font-size: 14px; text-align: center; line-height: 1.6;">
                       Nos pondremos en contacto contigo para coordinar la entrega del premio.
                     </p>
                   </td>
                 </tr>
-                
-                <!-- Footer -->
+
                 <tr>
                   <td style="background-color: #111; padding: 20px 30px; text-align: center;">
                     <p style="margin: 0; color: #666; font-size: 12px;">

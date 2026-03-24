@@ -6,20 +6,28 @@ import {
   QueryCommand,
   ScanCommand,
   UpdateCommand,
-  DeleteCommand,
 } from '@aws-sdk/lib-dynamodb'
-import { awsCredentialsProvider } from '@vercel/functions/oidc'
 import { Participant, Jugada, WinningPosition } from './types'
 
-export const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`)
+  }
+  return value
+}
+
+export const TABLE_NAME = requireEnv('DYNAMODB_TABLE_NAME')
 const PK = process.env.DYNAMODB_TABLE_PARTITION_KEY || 'pk'
+const REGION = process.env.AWS_REGION || 'us-east-1'
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION,
-  credentials: awsCredentialsProvider({
-    roleArn: process.env.AWS_ROLE_ARN!,
-    clientConfig: { region: process.env.AWS_REGION },
-  }),
+  region: REGION,
+  // No ponemos credentials manuales:
+  // AWS SDK las toma automáticamente de:
+  // - AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+  // - ~/.aws/credentials
+  // - IAM role del entorno si existe
 })
 
 const docClient = DynamoDBDocumentClient.from(client, {
