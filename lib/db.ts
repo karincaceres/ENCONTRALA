@@ -9,22 +9,20 @@ import {
 } from '@aws-sdk/lib-dynamodb'
 import { Participant, Jugada, WinningPosition } from './types'
 
-function requireEnv(name: string): string {
-  const value = process.env[name]
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`)
-  }
-  return value
-}
-
-export const TABLE_NAME = requireEnv('DYNAMODB_TABLE_NAME')
 const PK = process.env.DYNAMODB_TABLE_PARTITION_KEY || 'pk'
 const REGION = process.env.AWS_REGION || 'us-east-1'
 
+function getTableName(): string {
+  const tableName = process.env.DYNAMODB_TABLE_NAME
+  if (!tableName) {
+    throw new Error('Missing required environment variable: DYNAMODB_TABLE_NAME')
+  }
+  return tableName
+}
+
 const client = new DynamoDBClient({
   region: REGION,
-  // No ponemos credentials manuales:
-  // AWS SDK las toma automáticamente de:
+  // AWS SDK toma credenciales automáticamente de:
   // - AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
   // - ~/.aws/credentials
   // - IAM role del entorno si existe
@@ -41,7 +39,7 @@ const docClient = DynamoDBDocumentClient.from(client, {
 export async function createParticipant(participant: Participant): Promise<Participant> {
   await docClient.send(
     new PutCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       Item: {
         [PK]: `PARTICIPANT#${participant.id}`,
         sk: `PARTICIPANT#${participant.id}`,
@@ -56,7 +54,7 @@ export async function createParticipant(participant: Participant): Promise<Parti
 export async function getParticipantById(id: string): Promise<Participant | null> {
   const result = await docClient.send(
     new GetCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       Key: {
         [PK]: `PARTICIPANT#${id}`,
         sk: `PARTICIPANT#${id}`,
@@ -69,7 +67,7 @@ export async function getParticipantById(id: string): Promise<Participant | null
 export async function getParticipantByEmail(email: string): Promise<Participant | null> {
   const result = await docClient.send(
     new ScanCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       FilterExpression: '#type = :type AND email = :email',
       ExpressionAttributeNames: {
         '#type': 'type',
@@ -88,7 +86,7 @@ export async function getParticipantByEmail(email: string): Promise<Participant 
 export async function createJugada(jugada: Jugada): Promise<Jugada> {
   await docClient.send(
     new PutCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       Item: {
         [PK]: `PARTICIPANT#${jugada.participantId}`,
         sk: `JUGADA#${jugada.id}`,
@@ -105,7 +103,7 @@ export async function createJugada(jugada: Jugada): Promise<Jugada> {
 export async function getJugadasByParticipant(participantId: string): Promise<Jugada[]> {
   const result = await docClient.send(
     new QueryCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       KeyConditionExpression: `${PK} = :pk AND begins_with(sk, :sk)`,
       ExpressionAttributeValues: {
         ':pk': `PARTICIPANT#${participantId}`,
@@ -119,7 +117,7 @@ export async function getJugadasByParticipant(participantId: string): Promise<Ju
 export async function getJugadasByPrize(prizeId: string): Promise<Jugada[]> {
   const result = await docClient.send(
     new QueryCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       IndexName: 'gsi1',
       KeyConditionExpression: 'gsi1pk = :pk',
       ExpressionAttributeValues: {
@@ -133,7 +131,7 @@ export async function getJugadasByPrize(prizeId: string): Promise<Jugada[]> {
 export async function getAllJugadas(): Promise<Jugada[]> {
   const result = await docClient.send(
     new ScanCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       FilterExpression: '#type = :type',
       ExpressionAttributeNames: {
         '#type': 'type',
@@ -154,7 +152,7 @@ export async function updateJugadaWinner(
 ): Promise<void> {
   await docClient.send(
     new UpdateCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       Key: {
         [PK]: `PARTICIPANT#${participantId}`,
         sk: `JUGADA#${jugadaId}`,
@@ -173,7 +171,7 @@ export async function updateJugadaWinner(
 export async function createWinningPosition(position: WinningPosition): Promise<WinningPosition> {
   await docClient.send(
     new PutCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       Item: {
         [PK]: `WINNING#${position.prizeId}`,
         sk: `POSITION#${position.id}`,
@@ -188,7 +186,7 @@ export async function createWinningPosition(position: WinningPosition): Promise<
 export async function getWinningPositionByPrize(prizeId: string): Promise<WinningPosition | null> {
   const result = await docClient.send(
     new QueryCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       KeyConditionExpression: `${PK} = :pk AND begins_with(sk, :sk)`,
       ExpressionAttributeValues: {
         ':pk': `WINNING#${prizeId}`,
@@ -203,7 +201,7 @@ export async function getWinningPositionByPrize(prizeId: string): Promise<Winnin
 export async function getAllWinningPositions(): Promise<WinningPosition[]> {
   const result = await docClient.send(
     new ScanCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       FilterExpression: '#type = :type',
       ExpressionAttributeNames: {
         '#type': 'type',
@@ -223,7 +221,7 @@ export async function updateWinningPositionProcessed(
 ): Promise<void> {
   await docClient.send(
     new UpdateCommand({
-      TableName: TABLE_NAME,
+      TableName: getTableName(),
       Key: {
         [PK]: `WINNING#${prizeId}`,
         sk: `POSITION#${positionId}`,
